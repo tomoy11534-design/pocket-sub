@@ -1,0 +1,6 @@
+.env
+pocket-sub
+pocket-sub~
+pocket-sub.exe
+*.exe
+/bin/

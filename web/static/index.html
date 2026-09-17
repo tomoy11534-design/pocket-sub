@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PocketSub - サブスク管理</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-slate-100 min-h-screen">
+	<!-- トースト通知コンテナ -->
+	<div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+	<header class="bg-white shadow">
+		<div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+			<h1 class="text-xl font-bold text-slate-800">PocketSub</h1>
+			<button id="open-modal-button" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+				＋ サブスクを追加
+			</button>
+		</div>
+	</header>
+
+	<main class="max-w-5xl mx-auto px-4 py-8">
+		<!-- 年間コスト・月額換算・件数ダッシュボード -->
+		<section class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+			<div class="bg-white rounded-xl shadow p-6">
+				<p class="text-sm text-slate-500">年間合計コスト</p>
+				<p id="total-annual-cost" class="text-3xl font-bold text-slate-800 mt-1">¥0</p>
+			</div>
+			<div class="bg-white rounded-xl shadow p-6">
+				<p class="text-sm text-slate-500">今月の月額換算</p>
+				<p id="monthly-equivalent-cost" class="text-3xl font-bold text-slate-800 mt-1">¥0</p>
+			</div>
+			<div class="bg-white rounded-xl shadow p-6">
+				<p class="text-sm text-slate-500">登録件数</p>
+				<p id="subscription-count" class="text-3xl font-bold text-slate-800 mt-1">0件</p>
+			</div>
+		</section>
+
+		<!-- AI提案ボタン -->
+		<section class="mb-6">
+			<button id="ai-advice-button" disabled
+				class="w-full bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+				title="サブスクを登録すると利用できます">
+				🤖 AIにサブスク見直しを相談する
+			</button>
+		</section>
+
+		<!-- 検索・並び替え・カテゴリフィルター -->
+		<section class="mb-6 flex flex-col gap-3">
+			<div class="flex flex-col sm:flex-row gap-3">
+				<input id="search-input" type="search" placeholder="🔍 サービス名で検索"
+					class="flex-1 border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+				<select id="sort-select" class="border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+					<option value="renewal">次回更新日が近い順</option>
+					<option value="price-desc">料金が高い順</option>
+					<option value="price-asc">料金が安い順</option>
+					<option value="name">名前順</option>
+				</select>
+			</div>
+			<div id="category-tabs" class="flex flex-wrap gap-2">
+				<button type="button" data-category="all" class="category-tab text-sm px-3 py-1.5 rounded-full bg-indigo-600 text-white">全て</button>
+				<button type="button" data-category="エンタメ" class="category-tab text-sm px-3 py-1.5 rounded-full bg-white text-slate-600 hover:bg-slate-50">エンタメ</button>
+				<button type="button" data-category="音楽" class="category-tab text-sm px-3 py-1.5 rounded-full bg-white text-slate-600 hover:bg-slate-50">音楽</button>
+				<button type="button" data-category="アプリ" class="category-tab text-sm px-3 py-1.5 rounded-full bg-white text-slate-600 hover:bg-slate-50">アプリ</button>
+				<button type="button" data-category="ツール" class="category-tab text-sm px-3 py-1.5 rounded-full bg-white text-slate-600 hover:bg-slate-50">ツール</button>
+				<button type="button" data-category="アーティスト" class="category-tab text-sm px-3 py-1.5 rounded-full bg-white text-slate-600 hover:bg-slate-50">アーティスト</button>
+				<button type="button" data-category="その他" class="category-tab text-sm px-3 py-1.5 rounded-full bg-white text-slate-600 hover:bg-slate-50">その他</button>
+			</div>
+		</section>
+
+		<!-- サブスク一覧 -->
+		<section id="subscription-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+		<p id="empty-message" class="text-slate-400 text-center py-12 hidden">
+			📭 登録されているサブスクはありません
+		</p>
+	</main>
+
+	<!-- 追加・編集モーダル（共通） -->
+	<div id="modal-overlay" class="fixed inset-0 bg-black/40 hidden items-center justify-center px-4 z-40">
+		<div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+			<h2 id="modal-title" class="text-lg font-bold mb-4">サブスクを追加</h2>
+			<form id="subscription-form" class="space-y-4">
+				<div>
+					<label class="block text-sm text-slate-600 mb-1">サービス名</label>
+					<input name="name" type="text" required
+						class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+				</div>
+				<div>
+					<label class="block text-sm text-slate-600 mb-1">カテゴリ</label>
+					<select name="category" required
+						class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+						<option value="エンタメ">エンタメ</option>
+						<option value="音楽">音楽</option>
+						<option value="アプリ">アプリ</option>
+						<option value="ツール">ツール</option>
+						<option value="アーティスト">アーティスト</option>
+						<option value="その他">その他</option>
+					</select>
+				</div>
+				<div>
+					<label class="block text-sm text-slate-600 mb-1">料金（円）</label>
+					<input name="price" type="number" min="0" placeholder="980" required
+						class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+				</div>
+				<div>
+					<label class="block text-sm text-slate-600 mb-1">支払いサイクル</label>
+					<select name="billing_cycle"
+						class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+						<option value="monthly">月額</option>
+						<option value="yearly">年額</option>
+					</select>
+				</div>
+				<div>
+					<label class="block text-sm text-slate-600 mb-1">次回更新日</label>
+					<input name="next_billing_date" type="date" required
+						class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+				</div>
+				<div class="flex justify-end gap-2 pt-2">
+					<button type="button" id="close-modal-button" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">
+						キャンセル
+					</button>
+					<button type="submit" id="submit-button" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+						追加する
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<!-- 削除確認モーダル -->
+	<div id="delete-modal-overlay" class="fixed inset-0 bg-black/40 hidden items-center justify-center px-4 z-40">
+		<div class="bg-white rounded-xl shadow-lg w-full max-w-sm p-6">
+			<h2 class="text-lg font-bold mb-2">サブスクを削除</h2>
+			<p class="text-slate-600 mb-6">「<span id="delete-target-name" class="font-bold"></span>」を削除します。<br>この操作は取り消せません。</p>
+			<div class="flex justify-end gap-2">
+				<button type="button" id="delete-cancel-button" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">
+					キャンセル
+				</button>
+				<button type="button" id="delete-confirm-button" class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700">
+					削除する
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- AI提案結果モーダル -->
+	<div id="ai-modal-overlay" class="fixed inset-0 bg-black/40 hidden items-center justify-center px-4 z-40">
+		<div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
+			<h2 class="text-lg font-bold mb-4">🤖 AIからの提案</h2>
+			<div id="ai-modal-content" class="text-slate-700 text-sm leading-relaxed space-y-2"></div>
+			<div class="flex justify-end pt-4">
+				<button type="button" id="ai-modal-close-button" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">
+					閉じる
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<script src="/js/app.js"></script>
+</body>
+</html>
