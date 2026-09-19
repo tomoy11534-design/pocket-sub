@@ -1,0 +1,21 @@
+# Render用のBlueprint設定（Webサービス + PostgreSQLを一括作成する）
+services:
+  - type: web
+    name: pocket-sub
+    runtime: go
+    plan: free
+    buildCommand: go build -o bin/pocket-sub ./cmd/pocket-sub
+    startCommand: ./bin/pocket-sub
+    envVars:
+      # DB接続文字列は下のデータベースから自動で注入する
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pocket-sub-db
+          property: connectionString
+      # AI提案機能を使う場合のみ、Renderのダッシュボードで値を設定する
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+databases:
+  - name: pocket-sub-db
+    plan: free
