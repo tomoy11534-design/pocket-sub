@@ -1,0 +1,7 @@
+.git
+.env
+pocket-sub
+pocket-sub~
+*.exe
+bin/
+docs/
