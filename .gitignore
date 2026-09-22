@@ -1,6 +1,7 @@
 .env
-pocket-sub
-pocket-sub~
-pocket-sub.exe
+# ルート直下のビルド成果物のみ除外する（cmd/pocket-sub ディレクトリを巻き込まないよう先頭に/を付ける）
+/pocket-sub
+/pocket-sub~
+/pocket-sub.exe
 *.exe
 /bin/
